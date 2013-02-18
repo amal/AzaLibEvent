@@ -1,9 +1,9 @@
 AzaLibEvent
-====
-
-https://github.com/amal/AzaLibEvent
+===========
 
 AzaLibEvent is a simple, powerful and easy to use OOP wrapper for the PHP LibEvent.
+
+https://github.com/amal/AzaLibEvent
 
 Main features and possibilites:
 
@@ -13,7 +13,7 @@ Main features and possibilites:
 * Error handling with exceptions
 * Automatic resources cleanup
 
-AzaLibEvent is a part of Anizoptera CMF, written by [Amal Samally](http://azagroup.ru/contacts#amal) (amal.samally at gmail.com)
+AzaLibEvent is a part of Anizoptera CMF, written by [Amal Samally](http://azagroup.ru#amal) (amal.samally at gmail.com)
 
 Licensed under the MIT License.
 

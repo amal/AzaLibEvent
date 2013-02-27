@@ -11,8 +11,7 @@ use Aza\Components\LibEvent\Exceptions\Exception;
  * @uses libevent
  *
  * @project Anizoptera CMF
- * @package system.AzaLibEvent
- * @version $Id: EventBuffer.php 3253 2012-04-10 09:35:33Z samally $
+ * @package system.libevent
  * @author  Amal Samally <amal.samally at gmail.com>
  * @license MIT
  */
@@ -94,30 +93,44 @@ class EventBuffer extends EventBasic
 	 * @throws Exception
 	 *
 	 * @param resource $stream <p>
-	 * Valid PHP stream resource. Must be castable to file descriptor.
+	 * Valid PHP stream resource.
+	 * Must be castable to file descriptor.
 	 * </p>
 	 * @param callback|null $readcb <p>
-	 * Callback to invoke where there is data to read, or NULL if no callback is desired.
-	 * <br><tt>function(resource $buf, array $args(EventBuffer $e, mixed $arg))</tt>
+	 * Callback to invoke where there is data to read,
+	 * or NULL if no callback is desired.
+	 * <br><tt>function(resource $buf,
+	 * array $args(EventBuffer $e, mixed $arg))</tt>
 	 * </p>
 	 * @param callback|null $writecb <p>
-	 * Callback to invoke where the descriptor is ready for writing, or NULL if no callback is desired.
-	 * <br><tt>function(resource $buf, array $args(EventBuffer $e, mixed $arg))</tt>
+	 * Callback to invoke where the descriptor is ready
+	 * for writing, or NULL if no callback is desired.
+	 * <br><tt>function(resource $buf,
+	 * array $args(EventBuffer $e, mixed $arg))</tt>
 	 * </p>
 	 * @param callback $errorcb <p>
-	 * Callback to invoke where there is an error on the descriptor, cannot be NULL.
-	 * <br><tt>function(resource $buf, int $what, array $args(EventBuffer $e, mixed $arg))</tt>
+	 * Callback to invoke where there is an error
+	 * on the descriptor, cannot be NULL.
+	 * <br><tt>function(resource $buf, int $what,
+	 * array $args(EventBuffer $e, mixed $arg))</tt>
 	 * </p>
 	 * @param mixed $arg [optional] <p>
-	 * An argument that will be passed to each of the callbacks.
+	 * An argument that will be passed
+	 * to each of the callbacks.
 	 * </p>
 	 */
-	public function __construct($stream, $readcb, $writecb, $errorcb, $arg = null)
+	public function __construct($stream, $readcb,
+		$writecb, $errorcb, $arg = null)
 	{
 		parent::__construct();
 		$this->stream = $stream;
-		if (!$this->resource = event_buffer_new($stream, $readcb, $writecb, $errorcb, array($this, $arg))) {
-			throw new Exception("Can't create new buffered event resourse (event_buffer_new)");
+		if (!$this->resource = event_buffer_new(
+			$stream, $readcb, $writecb, $errorcb,
+			array($this, $arg)
+		)) {
+			throw new Exception(
+				"Can't create new buffered event resourse (event_buffer_new)"
+			);
 		}
 	}
 
@@ -137,7 +150,9 @@ class EventBuffer extends EventBasic
 	{
 		$this->checkResourse();
 		if (!event_buffer_disable($this->resource, $events)) {
-			throw new Exception("Can't disable buffered event (event_buffer_disable)");
+			throw new Exception(
+				"Can't disable buffered event (event_buffer_disable)"
+			);
 		}
 		return $this;
 	}
@@ -157,7 +172,9 @@ class EventBuffer extends EventBasic
 	{
 		$this->checkResourse();
 		if (!event_buffer_enable($this->resource, $events)) {
-			throw new Exception("Can't enable buffered event (event_buffer_enable)");
+			throw new Exception(
+				"Can't enable buffered event (event_buffer_enable)"
+			);
 		}
 		return $this;
 	}
@@ -178,8 +195,12 @@ class EventBuffer extends EventBasic
 	{
 		$this->checkResourse();
 		$event_base->checkResourse();
-		if (!event_buffer_base_set($this->resource, $event_base->resource)) {
-			throw new Exception("Can't set buffered event base (event_buffer_base_set)");
+		if (!event_buffer_base_set(
+			$this->resource, $event_base->resource
+		)) {
+			throw new Exception(
+				"Can't set buffered event base (event_buffer_base_set)"
+			);
 		}
 		return parent::setBase($event_base);
 	}
@@ -216,7 +237,9 @@ class EventBuffer extends EventBasic
 	public function read($data_size)
 	{
 		$this->checkResourse();
-		return event_buffer_read($this->resource, $data_size);
+		return event_buffer_read(
+			$this->resource, $data_size
+		);
 	}
 
 	/**
@@ -226,8 +249,12 @@ class EventBuffer extends EventBasic
 	 *
 	 * @throws Exception
 	 *
-	 * @param string $data      The data to be written.
-	 * @param int    $data_size Optional size parameter. Writes all the data by default
+	 * @param string $data <p>
+	 * The data to be written.
+	 * </p>
+	 * @param int $data_size [optional] <p>
+	 * Optional size parameter. Writes all the data by default
+	 * </p>
 	 *
 	 * @return self
 	 */
@@ -235,7 +262,9 @@ class EventBuffer extends EventBasic
 	{
 		$this->checkResourse();
 		if (!event_buffer_write($this->resource, $data, $data_size)) {
-			throw new Exception("Can't write data to the buffered event (event_buffer_write)");
+			throw new Exception(
+				"Can't write data to the buffered event (event_buffer_write)"
+			);
 		}
 		return $this;
 	}
@@ -248,7 +277,9 @@ class EventBuffer extends EventBasic
 	 *
 	 * @throws Exception
 	 *
-	 * @param resource $stream Valid PHP stream, must be castable to file descriptor.
+	 * @param resource $stream <p>
+	 * Valid PHP stream, must be castable to file descriptor.
+	 * </p>
 	 *
 	 * @return self
 	 */
@@ -270,19 +301,26 @@ class EventBuffer extends EventBasic
 	 * @throws Exception
 	 *
 	 * @param callback|null $readcb <p>
-	 * Callback to invoke where there is data to read, or NULL if no callback is desired.
-	 * <br><tt>function(resource $buf, array $args(EventBuffer $e, mixed $arg))</tt>
+	 * Callback to invoke where there is data to read,
+	 * or NULL if no callback is desired.
+	 * <br><tt>function(resource $buf,
+	 * array $args(EventBuffer $e, mixed $arg))</tt>
 	 * </p>
 	 * @param callback|null $writecb <p>
-	 * Callback to invoke where the descriptor is ready for writing, or NULL if no callback is desired.
-	 * <br><tt>function(resource $buf, array $args(EventBuffer $e, mixed $arg))</tt>
+	 * Callback to invoke where the descriptor is ready
+	 * for writing, or NULL if no callback is desired.
+	 * <br><tt>function(resource $buf,
+	 * array $args(EventBuffer $e, mixed $arg))</tt>
 	 * </p>
 	 * @param callback $errorcb <p>
-	 * Callback to invoke where there is an error on the descriptor, cannot be NULL.
-	 * <br><tt>function(resource $buf, int $what, array $args(EventBuffer $e, mixed $arg))</tt>
+	 * Callback to invoke where there is an error on
+	 * the descriptor, cannot be NULL.
+	 * <br><tt>function(resource $buf, int $what,
+	 * array $args(EventBuffer $e, mixed $arg))</tt>
 	 * </p>
 	 * @param mixed $arg [optional] <p>
-	 * An argument that will be passed to each of the callbacks.
+	 * An argument that will be passed
+	 * to each of the callbacks.
 	 * </p>
 	 *
 	 * @return self
@@ -290,8 +328,13 @@ class EventBuffer extends EventBasic
 	public function setCallback($readcb, $writecb, $errorcb, $arg = null)
 	{
 		$this->checkResourse();
-		if (!event_buffer_set_callback($this->resource, $readcb, $writecb, $errorcb, array($this, $arg))) {
-			throw new Exception("Can't set buffered event callbacks (event_buffer_set_callback)");
+		if (!event_buffer_set_callback(
+			$this->resource, $readcb, $writecb, $errorcb,
+			array($this, $arg)
+		)) {
+			throw new Exception(
+				"Can't set buffered event callbacks (event_buffer_set_callback)"
+			);
 		}
 		return $this;
 	}
@@ -313,17 +356,21 @@ class EventBuffer extends EventBasic
 		$write_timeout = self::DEF_TIMEOUT_WRITE)
 	{
 		$this->checkResourse();
-		event_buffer_timeout_set($this->resource, $read_timeout, $write_timeout);
+		event_buffer_timeout_set(
+			$this->resource, $read_timeout, $write_timeout
+		);
 		return $this;
 	}
 
 	/**
 	 * Set the marks for read and write events.
 	 *
-	 * <p>Libevent does not invoke read callback unless there is at least <i>lowmark</i>
-	 * bytes in the input buffer; if the read buffer is beyond the <i>highmark</i>,
-	 * reading is stopped. On output, the write callback is invoked whenever
-	 * the buffered data falls below the <i>lowmark</i>.</p>
+	 * <p>Libevent does not invoke read callback unless
+	 * there is at least <i>lowmark</i> bytes in the
+	 * input buffer; if the read buffer is beyond the
+	 * <i>highmark</i>, reading is stopped. On output,
+	 * the write callback is invoked whenever the
+	 * buffered data falls below the <i>lowmark</i>.</p>
 	 *
 	 * @see event_buffer_timeout_set
 	 *
@@ -335,10 +382,13 @@ class EventBuffer extends EventBasic
 	 *
 	 * @return self
 	 */
-	public function setWatermark($events, $lowmark = self::DEF_LOWMARK, $highmark = self::DEF_HIGHMARK)
+	public function setWatermark($events, $lowmark = self::DEF_LOWMARK,
+		$highmark = self::DEF_HIGHMARK)
 	{
 		$this->checkResourse();
-		event_buffer_watermark_set($this->resource, $events, $lowmark, $highmark);
+		event_buffer_watermark_set(
+			$this->resource, $events, $lowmark, $highmark
+		);
 		return $this;
 	}
 
@@ -348,11 +398,14 @@ class EventBuffer extends EventBasic
 	 * @see event_buffer_priority_set
 	 *
 	 * @param int $value <p>
-	 * Priority level. Cannot be less than zero and cannot exceed
-	 * maximum priority level of the event base (see {@link event_base_priority_init}()).
+	 * Priority level. Cannot be less than zero and
+	 * cannot exceed maximum priority level of the
+	 * event base (see {@link event_base_priority_init}()).
 	 * </p>
 	 *
 	 * @return self
+	 *
+	 * @throws Exception
 	 */
 	public function setPriority($value = self::DEF_PRIORITY)
 	{

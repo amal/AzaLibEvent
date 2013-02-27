@@ -2,7 +2,7 @@
 
 namespace Aza\Components\LibEvent;
 use Aza\Components\LibEvent\Exceptions\Exception;
-use Aza\Components\Cli\Base;
+use Aza\Components\CliBase\Base;
 
 /**
  * LibEvent base resourse wrapper
@@ -12,8 +12,7 @@ use Aza\Components\Cli\Base;
  * @uses libevent
  *
  * @project Anizoptera CMF
- * @package system.AzaLibEvent
- * @version $Id: EventBase.php 3253 2012-04-10 09:35:33Z samally $
+ * @package system.libevent
  * @author  Amal Samally <amal.samally at gmail.com>
  * @license MIT
  */
@@ -71,7 +70,8 @@ class EventBase
 	 *
 	 * @throws Exception
 	 *
-	 * @param bool $initPriority Whether to init priority with default value
+	 * @param bool $initPriority Whether to init
+	 * priority with default value
 	 */
 	public function __construct($initPriority = true)
 	{
@@ -91,9 +91,13 @@ class EventBase
 	protected function init($initPriority = true)
 	{
 		if (!Base::$hasLibevent) {
-			throw new Exception('You need to install PECL extension "Libevent" to use this class');
+			throw new Exception(
+				'You need to install PECL extension "Libevent" to use this class'
+			);
 		} else if (!$this->resource = event_base_new()) {
-			throw new Exception("Can't create event base resourse (event_base_new)");
+			throw new Exception(
+				"Can't create event base resourse (event_base_new)"
+			);
 		}
 		$initPriority && $this->priorityInit();
 	}
@@ -134,8 +138,11 @@ class EventBase
 	}
 
 	/**
-	 * Destroys the specified event_base and frees all the resources associated.
-	 * Note that it's not possible to destroy an event base with events attached to it.
+	 * Destroys the specified event_base and frees
+	 * all the resources associated.
+	 *
+	 * Note that it's not possible to destroy an
+	 * event base with events attached to it.
 	 *
 	 * @see event_base_free
 	 *
@@ -193,7 +200,10 @@ class EventBase
 	 *
 	 * @throws Exception if error
 	 *
-	 * @param int $flags Optional parameter, which can take any combination of EVLOOP_ONCE and EVLOOP_NONBLOCK.
+	 * @param int $flags [optional] <p>
+	 * Any combination of EVLOOP_ONCE
+	 * and EVLOOP_NONBLOCK.
+	 * <p>
 	 *
 	 * @return int Returns 0 on success, 1 if no events were registered.
 	 */
@@ -202,13 +212,16 @@ class EventBase
 		$this->checkResourse();
 		$res = event_base_loop($this->resource, $flags);
 		if ($res === -1) {
-			throw new Exception("Can't start base loop (event_base_loop)");
+			throw new Exception(
+				"Can't start base loop (event_base_loop)"
+			);
 		}
 		return $res;
 	}
 
 	/**
-	 * Abort the active event loop immediately. The behaviour is similar to break statement.
+	 * Abort the active event loop immediately.
+	 * The behaviour is similar to break statement.
 	 *
 	 * @see event_base_loopbreak
 	 *
@@ -220,7 +233,9 @@ class EventBase
 	{
 		$this->checkResourse();
 		if (!event_base_loopbreak($this->resource)) {
-			throw new Exception("Can't break loop (event_base_loopbreak)");
+			throw new Exception(
+				"Can't break loop (event_base_loopbreak)"
+			);
 		}
 		return $this;
 	}
@@ -232,7 +247,9 @@ class EventBase
 	 *
 	 * @throws Exception
 	 *
-	 * @param int $timeout Optional timeout parameter (in microseconds).
+	 * @param int $timeout [optional] <p>
+	 * Timeout in microseconds.
+	 * <p>
 	 *
 	 * @return self
 	 */
@@ -240,7 +257,9 @@ class EventBase
 	{
 		$this->checkResourse();
 		if (!event_base_loopexit($this->resource, $timeout)) {
-			throw new Exception("Can't set loop exit timeout (event_base_loopexit)");
+			throw new Exception(
+				"Can't set loop exit timeout (event_base_loopexit)"
+			);
 		}
 		return $this;
 	}
@@ -278,7 +297,9 @@ class EventBase
 	public function checkResourse()
 	{
 		if (!$this->resource) {
-			throw new Exception("Can't use event base resource. It's already freed.");
+			throw new Exception(
+				"Can't use event base resource. It's already freed."
+			);
 		}
 	}
 
@@ -292,19 +313,26 @@ class EventBase
 	 * @param int  $interval Interval
 	 * @param callback $callback <p>
 	 * Callback function to be called when the interval expires.<br/>
-	 * <tt>function(string $timer_name, mixed $arg, int $iteration, EventBase $event_base){}</tt><br/>
-	 * If callback will return FALSE timer will not be added again for next iteration.
+	 * <tt>function(string $timer_name, mixed $arg,
+	 * int $iteration, EventBase $event_base){}</tt><br/>
+	 * If callback will return FALSE timer will not
+	 * be added again for next iteration.
 	 * </p>
 	 * @param mixed $arg   Additional timer argument
 	 * @param bool  $start Whether to start timer
 	 * @param int   $q     Interval multiply factor
 	 */
-	public function timerAdd($name, $interval = null, $callback = null, $arg = null, $start = true, $q = 1000000)
+	public function timerAdd($name, $interval = null, $callback = null,
+		$arg = null, $start = true, $q = 1000000)
 	{
 		$notExists = !isset($this->timers[$name]);
 
-		if (($notExists || $callback) && !is_callable($callback, false, $callableName)) {
-			throw new Exception("Incorrect callback '{$callableName}' for timer ({$name}).");
+		if (($notExists || $callback)
+		    && !is_callable($callback, false, $callableName)
+		) {
+			throw new Exception(
+				"Incorrect callback '{$callableName}' for timer ({$name})."
+			);
 		}
 
 		if ($notExists) {
@@ -322,6 +350,7 @@ class EventBase
 			);
 		} else {
 			$timer = &$this->timers[$name];
+			/** @var $event Event */
 			$event = $timer['event'];
 			$event->del();
 			if ($callback) {
@@ -348,11 +377,16 @@ class EventBase
 	 * @param int    $interval       Interval
 	 * @param mixed  $arg            Additional timer argument
 	 * @param bool   $resetIteration Whether to reset iteration counter
+	 *
+	 * @throws Exception
 	 */
-	public function timerStart($name, $interval = null, $arg = null, $resetIteration = true)
+	public function timerStart($name, $interval = null,
+		$arg = null, $resetIteration = true)
 	{
 		if (!isset($this->timers[$name])) {
-			throw new Exception("Unknown timer '{$name}'. Add timer before using.");
+			throw new Exception(
+				"Unknown timer '{$name}'. Add timer before using."
+			);
 		}
 		$timer = &$this->timers[$name];
 		if ($resetIteration) {
@@ -423,6 +457,9 @@ class EventBase
 	 *
 	 * @see Event::setTimer
 	 *
+	 * @access protected
+	 * @internal
+	 *
 	 * @param null  $fd
 	 * @param int   $event EV_TIMEOUT
 	 * @param array $args
@@ -438,9 +475,17 @@ class EventBase
 
 		// Invoke callback
 		$timer = &$this->timers[$name];
-		$res = call_user_func($timer['callback'], $name, $timer['arg'], ++$timer['i'], $this);
+		$res = call_user_func(
+			$timer['callback'],
+			$name,
+			$timer['arg'],
+			++$timer['i'],
+			$this
+		);
 		if ($res) {
-			$this->timerStart($name, null, null, false);
+			$this->timerStart(
+				$name, null, null, false
+			);
 		} else {
 			$timer['i'] = 0;
 		}

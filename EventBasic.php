@@ -2,7 +2,7 @@
 
 namespace Aza\Components\LibEvent;
 use Aza\Components\LibEvent\Exceptions\Exception;
-use Aza\Components\Cli\Base;
+use Aza\Components\CliBase\Base;
 
 /**
  * LibEvent "basic" event functionality
@@ -12,8 +12,7 @@ use Aza\Components\Cli\Base;
  * @uses libevent
  *
  * @project Anizoptera CMF
- * @package system.AzaLibEvent
- * @version $Id: EventBasic.php 3253 2012-04-10 09:35:33Z samally $
+ * @package system.libevent
  * @author  Amal Samally <amal.samally at gmail.com>
  * @license MIT
  */
@@ -105,7 +104,9 @@ abstract class EventBasic
 	protected function checkResourse()
 	{
 		if (!$this->resource) {
-			throw new Exception("Can't use event resource. It's already freed.");
+			throw new Exception(
+				"Can't use event resource. It's already freed."
+			);
 		}
 	}
 }

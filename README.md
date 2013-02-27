@@ -1,19 +1,21 @@
 AzaLibEvent
 ===========
 
-AzaLibEvent is a simple, powerful and easy to use OOP wrapper for the PHP LibEvent.
+Simple, powerful and easy to use OOP wrapper for the [LibEvent](http://libevent.org/) PHP bindings.
 
-https://github.com/amal/AzaLibEvent
+https://github.com/Anizoptera/AzaLibEvent
 
-Main features and possibilites:
+[![Build Status](https://secure.travis-ci.org/Anizoptera/AzaLibEvent.png?branch=master)](http://travis-ci.org/Anizoptera/AzaLibEvent)
 
-* Convenient, fully documented and tested in production API
-* Timers and intervals system (look at EventBase::timerAdd)
-* Special base reinitializing for forks (look at EventBase::reinitialize)
-* Error handling with exceptions
-* Automatic resources cleanup
+Main features:
 
-AzaLibEvent is a part of Anizoptera CMF, written by [Amal Samally](http://azagroup.ru#amal) (amal.samally at gmail.com)
+* Convenient, fully documented and tested in production API;
+* Timers and intervals system (look at `EventBase::timerAdd`);
+* Special base reinitializing for forks (look at `EventBase::reinitialize`);
+* Error handling with exceptions;
+* Automatic resources cleanup;
+
+AzaLibEvent is a part of [Anizoptera CMF](https://github.com/Anizoptera), written by [Amal Samally](http://azagroup.ru/#amal) (amal.samally at gmail.com) and [AzaGroup](http://azagroup.ru/) team.
 
 Licensed under the MIT License.
 
@@ -25,28 +27,38 @@ Requirements
 * [libevent](http://php.net/libevent);
 
 
+Installation
+------------
+
+The recommended way to install AzaLibEvent is [through composer](http://getcomposer.org).
+You can see [package information on Packagist.](https://packagist.org/packages/aza/libevent)
+
+```JSON
+{
+	"require": {
+		"aza/libevent": "~1.0"
+	}
+}
+```
+
+
 Examples
 --------
 
-WARNING!
-To run the examples you need some sort of class autoloader (PSR-0 supported).
-Or, of course, you can include all files manually.
-
-
-Example #1 - polling STDIN using basic API (see [example1.php](https://github.com/amal/AzaLibEvent/blob/master/example1.php))
+Example #1 - polling STDIN using basic API (see [examples/basic_api.php](examples/basic_api.php))
 
 ```php
 /**
  * Callback function to be called when the matching event occurs
  *
- * @param resource $buf    File descriptor
+ * @param resource $fd     File descriptor
  * @param int      $events What kind of events occurred. See EV_* constants
  * @param array    $args   Event arguments - array(Event $e, mixed $arg)
  */
 function print_line($fd, $events, $args)
 {
-    static $max_requests = 0;
-    $max_requests++;
+	static $max_requests = 0;
+	$max_requests++;
 
 	/**
 	 * @var $e    Event
@@ -54,13 +66,13 @@ function print_line($fd, $events, $args)
 	 */
 	list($e, $base) = $args;
 
-    // exit loop after 10 writes
-    if ($max_requests == 10) {
+	// exit loop after 10 writes
+	if ($max_requests == 10) {
 		$base->loopExit();
-    }
+	}
 
-    // print the line
-    echo fgets($fd);
+	// print the line
+	echo fgets($fd);
 }
 
 // Create base
@@ -69,15 +81,15 @@ $base = new EventBase;
 // Setup and enable event
 $ev = new Event();
 $ev->set(STDIN, EV_READ|EV_PERSIST, 'print_line', $base)
-	->setBase($base)
-	->add();
+		->setBase($base)
+		->add();
 
 // Start event loop
 $base->loop();
 ```
 
 
-Example #2 - polling STDIN using buffered event API (see [example2.php](https://github.com/amal/AzaLibEvent/blob/master/example2.php))
+Example #2 - polling STDIN using buffered event API (see [examples/buffered_api.php](examples/buffered_api.php))
 
 ```php
 /**
@@ -88,8 +100,8 @@ Example #2 - polling STDIN using buffered event API (see [example2.php](https://
  */
 function print_line($buf, $args)
 {
-    static $max_requests;
-    $max_requests++;
+	static $max_requests;
+	$max_requests++;
 
 	/**
 	 * @var $e    EventBuffer
@@ -97,13 +109,13 @@ function print_line($buf, $args)
 	 */
 	list($e, $base) = $args;
 
-    // exit loop after 10 writes
-    if ($max_requests == 10) {
+	// exit loop after 10 writes
+	if ($max_requests == 10) {
 		$base->loopExit();
-    }
+	}
 
-    // print the line
-    echo $e->read(4096);
+	// print the line
+	echo $e->read(4096);
 }
 
 /**
@@ -132,7 +144,7 @@ $base->loop();
 ```
 
 
-Links
------
+License
+-------
 
-AzaLibEvent is used in the [AzaThread](https://github.com/amal/AzaThread) libreary (Simple and powerful threads emulation for PHP)
+MIT, see [LICENSE.md](LICENSE.md)

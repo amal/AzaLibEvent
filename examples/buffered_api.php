@@ -1,23 +1,18 @@
 <?php
 
-use Aza\Components\Cli\Base;
+use Aza\Components\CliBase\Base;
 use Aza\Components\LibEvent\EventBase;
 use Aza\Components\LibEvent\EventBuffer;
 
-require __DIR__ . '/Components/Cli/Base.php';
-require __DIR__ . '/Components/LibEvent/Exceptions/Exception.php';
-require __DIR__ . '/Components/LibEvent/EventBase.php';
-require __DIR__ . '/Components/LibEvent/EventBasic.php';
-require __DIR__ . '/Components/LibEvent/EventBuffer.php';
-
+require __DIR__ . '/../vendor/autoload.php';
 
 /**
- * AzaLibEvent Example #2 - polling STDIN using buffered event API
+ * Example #2 - polling STDIN using buffered event API
  *
  * @link http://www.php.net/manual/en/libevent.examples.php
  *
  * @project Anizoptera CMF
- * @package system.AzaLibEvent
+ * @package system.libevent
  * @author  Amal Samally <amal.samally at gmail.com>
  * @license MIT
  */
@@ -31,8 +26,8 @@ require __DIR__ . '/Components/LibEvent/EventBuffer.php';
  */
 function print_line($buf, $args)
 {
-    static $max_requests;
-    $max_requests++;
+	static $max_requests;
+	$max_requests++;
 
 	/**
 	 * @var $e    EventBuffer
@@ -40,13 +35,13 @@ function print_line($buf, $args)
 	 */
 	list($e, $base) = $args;
 
-    // exit loop after 10 writes
-    if ($max_requests == 10) {
+	// exit loop after 10 writes
+	if ($max_requests == 10) {
 		$base->loopExit();
-    }
+	}
 
-    // print the line
-    echo $e->read(4096);
+	// print the line
+	echo $e->read(4096);
 }
 
 /**

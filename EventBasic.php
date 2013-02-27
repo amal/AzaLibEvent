@@ -2,7 +2,7 @@
 
 namespace Aza\Components\LibEvent;
 use Aza\Components\LibEvent\Exceptions\Exception;
-use Aza\Components\Cli\Base;
+use Aza\Components\CliBase\Base;
 
 /**
  * LibEvent "basic" event functionality

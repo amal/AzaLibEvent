@@ -104,7 +104,9 @@ abstract class EventBasic
 	protected function checkResourse()
 	{
 		if (!$this->resource) {
-			throw new Exception("Can't use event resource. It's already freed.");
+			throw new Exception(
+				"Can't use event resource. It's already freed."
+			);
 		}
 	}
 }

@@ -12,7 +12,7 @@ use Aza\Components\CliBase\Base;
  * @uses libevent
  *
  * @project Anizoptera CMF
- * @package system.AzaLibEvent
+ * @package system.libevent
  * @author  Amal Samally <amal.samally at gmail.com>
  * @license MIT
  */

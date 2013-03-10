@@ -147,4 +147,4 @@ $base->loop();
 License
 -------
 
-MIT, see [LICENSE.md](LICENSE.md)
+[MIT](http://www.opensource.org/licenses/mit-license.html), see [LICENSE.md](LICENSE.md)

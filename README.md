@@ -5,19 +5,33 @@ Simple, powerful and easy to use OOP wrapper for the [LibEvent](http://libevent.
 
 https://github.com/Anizoptera/AzaLibEvent
 
-[![Build Status](https://secure.travis-ci.org/Anizoptera/AzaLibEvent.png?branch=master)](http://travis-ci.org/Anizoptera/AzaLibEvent)
+[![Build Status][TravisImage]][Travis]
 
-Main features:
+
+Table of Contents
+-----------------
+
+1. [Introduction](#introduction)
+2. [Requirements](#requirements)
+3. [Installation](#installation)
+4. [Examples](#examples)
+   * [Polling STDIN using basic API](#example-1---polling-stdin-using-basic-api)
+   * [Polling STDIN using buffered event API](#example-2---polling-stdin-using-buffered-event-api)
+6. [Credits](#credits)
+7. [License](#license)
+8. [Links](#links)
+
+
+Introduction
+------------
+
+**Main features:**
 
 * Convenient, fully documented and tested in production API;
 * Timers and intervals system (look at `EventBase::timerAdd`);
 * Special base reinitializing for forks (look at `EventBase::reinitialize`);
 * Error handling with exceptions;
 * Automatic resources cleanup;
-
-AzaLibEvent is a part of [Anizoptera CMF](https://github.com/Anizoptera), written by [Amal Samally](http://azagroup.ru/#amal) (amal.samally at gmail.com) and [AzaGroup](http://azagroup.ru/) team.
-
-Licensed under the MIT License.
 
 
 Requirements
@@ -31,7 +45,7 @@ Installation
 ------------
 
 The recommended way to install AzaLibEvent is [through composer](http://getcomposer.org).
-You can see [package information on Packagist.](https://packagist.org/packages/aza/libevent)
+You can see [package information on Packagist][ComposerPackage].
 
 ```JSON
 {
@@ -45,7 +59,9 @@ You can see [package information on Packagist.](https://packagist.org/packages/a
 Examples
 --------
 
-Example #1 - polling STDIN using basic API (see [examples/basic_api.php](examples/basic_api.php))
+#### Example #1 - Polling STDIN using basic API
+
+See [examples/basic_api.php](examples/basic_api.php)
 
 ```php
 /**
@@ -89,7 +105,9 @@ $base->loop();
 ```
 
 
-Example #2 - polling STDIN using buffered event API (see [examples/buffered_api.php](examples/buffered_api.php))
+#### Example #2 - Polling STDIN using buffered event API
+
+See [examples/buffered_api.php](examples/buffered_api.php)
 
 ```php
 /**
@@ -144,7 +162,32 @@ $base->loop();
 ```
 
 
+Credits
+-------
+
+AzaLibEvent is a part of [Anizoptera CMF][], written by [Amal Samally][] (amal.samally at gmail.com) and [AzaGroup][] team.
+
+
 License
 -------
 
-[MIT](http://www.opensource.org/licenses/mit-license.html), see [LICENSE.md](LICENSE.md)
+Released under the [MIT](LICENSE.md) license.
+
+
+Links
+-----
+
+* [Composer package][ComposerPackage]
+* [Last build on the Travis CI][Travis]
+* [Project profile on the Ohloh](https://www.ohloh.net/p/AzaLibEvent)
+* Other Anizoptera CMF components on the [GitHub][Anizoptera CMF] / [Packagist](https://packagist.org/packages/aza)
+* (RU) [AzaGroup team blog][AzaGroup]
+
+
+
+[Anizoptera CMF]:  https://github.com/Anizoptera
+[Amal Samally]:    http://azagroup.ru/about/#amal
+[AzaGroup]:        http://azagroup.ru/
+[ComposerPackage]: https://packagist.org/packages/aza/libevent
+[TravisImage]:     https://secure.travis-ci.org/Anizoptera/AzaLibEvent.png?branch=master
+[Travis]:          http://travis-ci.org/Anizoptera/AzaLibEvent

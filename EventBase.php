@@ -395,12 +395,12 @@ class EventBase
 		if ($arg !== null) {
 			$timer['arg'] = $arg;
 		}
-		if ($interval > 1) {
+		if ($interval > 0) {
 			$timer['interval'] = $interval;
 		}
 		/** @var $event Event */
 		$event = $timer['event'];
-		$event->add($timer['interval'] * $timer['q']);
+		$event->add((int)($timer['interval'] * $timer['q']));
 	}
 
 	/**

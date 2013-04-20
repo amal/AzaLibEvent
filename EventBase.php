@@ -315,8 +315,8 @@ class EventBase
 	 * Callback function to be called when the interval expires.<br/>
 	 * <tt>function(string $timer_name, mixed $arg,
 	 * int $iteration, EventBase $event_base){}</tt><br/>
-	 * If callback will return FALSE timer will not
-	 * be added again for next iteration.
+	 * If callback will return TRUE timer will be started
+	 * again for next iteration.
 	 * </p>
 	 * @param mixed $arg   Additional timer argument
 	 * @param bool  $start Whether to start timer

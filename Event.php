@@ -5,7 +5,7 @@ use Aza\Components\LibEvent\Exceptions\Exception;
 use Aza\Components\CliBase\Base;
 
 /**
- * LibEvent event resourse wrapper
+ * LibEvent event resource wrapper
  *
  * @link http://www.wangafu.net/~nickm/libevent-book/
  *
@@ -19,31 +19,16 @@ use Aza\Components\CliBase\Base;
 class Event extends EventBasic
 {
 	/**
-	 * Event resource
-	 *
-	 * @var resource
-	 */
-	public $resource;
-
-	/**
-	 * @var EventBase
-	 */
-	public $base;
-
-
-	/**
-	 * Creates a new event resource.
+	 * {@inheritdoc}
 	 *
 	 * @see event_new
-	 *
-	 * @throws Exception
 	 */
 	public function __construct()
 	{
 		parent::__construct();
 		if (!$this->resource = event_new()) {
 			throw new Exception(
-				"Can't create new event resourse (event_new)"
+				"Can't create new event resource (event_new)"
 			);
 		}
 	}
@@ -58,12 +43,14 @@ class Event extends EventBasic
 	 *
 	 * @param int $timeout Optional timeout (in microseconds).
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function add($timeout = -1)
 	{
-		$this->checkResourse();
-		if (!event_add($this->resource, $timeout)) {
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		if (!event_add($resource, $timeout)) {
 			throw new Exception(
 				"Can't add event (event_add)"
 			);
@@ -78,12 +65,14 @@ class Event extends EventBasic
 	 *
 	 * @throws Exception if can't delete event
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function del()
 	{
-		$this->checkResourse();
-		if (!event_del($this->resource)) {
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		if (!event_del($resource)) {
 			throw new Exception(
 				"Can't delete event (event_del)"
 			);
@@ -93,20 +82,17 @@ class Event extends EventBasic
 
 
 	/**
-	 * Associate event with an event base.
+	 * {@inheritdoc}
 	 *
 	 * @see event_base_set
 	 *
 	 * @throws Exception
-	 *
-	 * @param EventBase $event_base
-	 *
-	 * @return self
 	 */
 	public function setBase($event_base)
 	{
-		$this->checkResourse();
-		$event_base->checkResourse();
+		$this->checkResource();
+		$event_base->checkResource();
+
 		if (!event_base_set(
 			$this->resource,
 			$event_base->resource
@@ -115,22 +101,21 @@ class Event extends EventBasic
 				"Can't set event base (event_base_set)"
 			);
 		}
+
 		return parent::setBase($event_base);
 	}
 
 	/**
-	 * Destroys the event and frees all the resources associated.
+	 * {@inheritdoc}
 	 *
 	 * @see event_free
-	 *
-	 * @return self
 	 */
-	public function free()
+	public function free($afterForkCleanup = false)
 	{
 		parent::free();
-		if ($res = $this->resource) {
-			event_del($res);
-			event_free($res);
+		if ($resource = $this->resource) {
+			event_del($resource);
+			event_free($resource);
 			$this->resource = null;
 		}
 		return $this;
@@ -167,11 +152,12 @@ class Event extends EventBasic
 	 * </p>
 	 * @param mixed $arg
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function set($fd, $events, $callback, $arg = null)
 	{
-		$this->checkResourse();
+		$this->checkResource();
+
 		if (!event_set(
 			$this->resource,
 			$fd,
@@ -183,6 +169,7 @@ class Event extends EventBasic
 				"Can't prepare event (event_set)"
 			);
 		}
+
 		return $this;
 	}
 
@@ -210,24 +197,27 @@ class Event extends EventBasic
 	 * </p>
 	 * @param mixed $arg
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function setSignal($signo, $callback,
 		$persist = true, $arg = null)
 	{
-		$this->checkResourse();
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
 		$events = EV_SIGNAL;
-		if ($persist) {
-			$events |= EV_PERSIST;
-		}
+
+		$persist
+			&& $events |= EV_PERSIST;
+
 		if (!event_set(
-			$this->resource,
+			$resource,
 			$signo,
 			$events,
 			$callback,
 			array($this, $arg, $signo)
 		)) {
-			$name = Base::signalName($signo);
+			$name = Base::getSignalName($signo);
 			throw new Exception(
 				"Can't prepare event (event_set) for $name ($signo) signal"
 			);
@@ -251,13 +241,15 @@ class Event extends EventBasic
 	 * </p>
 	 * @param mixed $arg
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function setTimer($callback, $arg = null)
 	{
-		$this->checkResourse();
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
 		if (!event_timer_set(
-			$this->resource,
+			$resource,
 			$callback,
 			array($this, $arg)
 		)) {

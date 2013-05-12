@@ -4,6 +4,22 @@ CHANGELOG
 ## Version 1.1 (work in progress)
 
 
+09.05.2013
+- **FEATURE:** `EventBuffer` reinitialization on the fly (amal)
+- **FEATURE:** `EventBuffer::readAll()` and `EventBuffer::readAllClean()` helper methods (amal)
+
+03.05.2013
+- **IMPROVED:** Buffered events disabling before fork and enabling after fork (amal)
+- **FEATURE:** Event base before/after fork hooks (amal)
+
+30.04.2013
+- **MINOR:** Small typo fix (amal)
+- **MINOR:** Some speed optimizations (amal)
+
+27.04.2013
+- **IMPROVED:** Better cleanup on reinitializing (amal)
+- **MINOR:** PhpDoc improvements (amal)
+
 20.04.2013
 - **MINOR:** Small PhpDoc fix (amal)
 

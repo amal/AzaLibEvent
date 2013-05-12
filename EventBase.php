@@ -5,7 +5,7 @@ use Aza\Components\LibEvent\Exceptions\Exception;
 use Aza\Components\CliBase\Base;
 
 /**
- * LibEvent base resourse wrapper
+ * LibEvent base resource wrapper (event loop)
  *
  * @link http://www.wangafu.net/~nickm/libevent-book/
  *
@@ -50,7 +50,7 @@ class EventBase
 	/**
 	 * Events
 	 *
-	 * @var Event[]|EventBuffer[]
+	 * @var EventBasic[]
 	 */
 	public $events = array();
 
@@ -76,7 +76,6 @@ class EventBase
 	public function __construct($initPriority = true)
 	{
 		$this->init($initPriority);
-		$this->id = ++self::$counter;
 	}
 
 	/**
@@ -87,6 +86,8 @@ class EventBase
 	 * @throws Exception
 	 *
 	 * @param bool $initPriority Whether to init priority with default value
+	 *
+	 * @return $this
 	 */
 	protected function init($initPriority = true)
 	{
@@ -96,36 +97,67 @@ class EventBase
 			);
 		} else if (!$this->resource = event_base_new()) {
 			throw new Exception(
-				"Can't create event base resourse (event_base_new)"
+				"Can't create event base resource (event_base_new)"
 			);
 		}
 		$initPriority && $this->priorityInit();
+		$this->id = ++self::$counter;
+		return $this;
+	}
+
+
+	/**
+	 * Prepares event base for forking
+	 * to avoid resources damage
+	 *
+	 * Use this method before fork in parent!
+	 */
+	public function beforeFork()
+	{
+		if ($this->events) {
+			// Trigger already ready events
+			$this->loop(EVLOOP_NONBLOCK);
+
+			// Disable buffered events
+			foreach ($this->events as $e) {
+				if ($e instanceof EventBuffer) {
+					$e->disable(0);
+				}
+			}
+		}
 	}
 
 	/**
-	 * Reinitializes event base and cleans all
-	 * attached events and timers without destroying
-	 * resources in parent process.
+	 * Enables all disabled events
+	 *
+	 * Use this method after fork in parent!
+	 */
+	public function afterFork()
+	{
+		// Enable buffered events
+		if ($this->events) {
+			foreach ($this->events as $e) {
+				if ($e instanceof EventBuffer) {
+					$e->enable(0);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Cleans all attached events and reinitializes
+	 * event base.
 	 *
 	 * Use this method after fork in child!
 	 *
-	 * @param bool $initPriority Whether to init priority with default value
+	 * @param bool $initPriority
+	 * Whether to init priority with default value
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function reinitialize($initPriority = true)
 	{
-		foreach ($this->events as $e) {
-			if ($e instanceof Event) {
-				$e->free();
-			}
-			// We do not free the buffered events -
-			// it damages the resources in the parent.
-			// PHP will free instances and resources on the end of the process
-		}
-		$this->events = $this->timers = array();
-		$this->init($initPriority);
-		return $this;
+		return $this->free(true)->init($initPriority);
 	}
 
 
@@ -134,7 +166,7 @@ class EventBase
 	 */
 	public function __destruct()
 	{
-		$this->resource && $this->free();
+		$this->free();
 	}
 
 	/**
@@ -146,12 +178,16 @@ class EventBase
 	 *
 	 * @see event_base_free
 	 *
-	 * @return self
+	 * @param bool $afterForkCleanup [optional] <p>
+	 * Special handling of cleanup after fork
+	 * </p>
+	 *
+	 * @return $this
 	 */
-	public function free()
+	public function free($afterForkCleanup = false)
 	{
+		$this->freeAttachedEvents($afterForkCleanup);
 		if ($this->resource) {
-			$this->freeAttachedEvents();
 			@event_base_free($this->resource);
 			$this->resource = null;
 		}
@@ -161,15 +197,20 @@ class EventBase
 	/**
 	 * Frees all attached timers and events
 	 *
-	 * @return self
+	 * @param bool $afterForkCleanup [optional] <p>
+	 * Special handling of cleanup after fork
+	 * </p>
+	 *
+	 * @return $this
 	 */
-	public function freeAttachedEvents()
+	public function freeAttachedEvents($afterForkCleanup = false)
 	{
-		foreach ($this->events as $e) {
-			$e->free();
+		if ($this->events) {
+			foreach ($this->events as $e) {
+				$e->free($afterForkCleanup);
+			}
 		}
-		$this->events =
-		$this->timers = array();
+		$this->events = $this->timers = array();
 		return $this;
 	}
 
@@ -184,7 +225,7 @@ class EventBase
 	 *
 	 * @param EventBasic $event
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function setEvent($event)
 	{
@@ -209,8 +250,10 @@ class EventBase
 	 */
 	public function loop($flags = 0)
 	{
-		$this->checkResourse();
-		$res = event_base_loop($this->resource, $flags);
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		$res = event_base_loop($resource, $flags);
 		if ($res === -1) {
 			throw new Exception(
 				"Can't start base loop (event_base_loop)"
@@ -227,12 +270,14 @@ class EventBase
 	 *
 	 * @throws Exception
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function loopBreak()
 	{
-		$this->checkResourse();
-		if (!event_base_loopbreak($this->resource)) {
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		if (!event_base_loopbreak($resource)) {
 			throw new Exception(
 				"Can't break loop (event_base_loopbreak)"
 			);
@@ -251,12 +296,14 @@ class EventBase
 	 * Timeout in microseconds.
 	 * <p>
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function loopExit($timeout = -1)
 	{
-		$this->checkResourse();
-		if (!event_base_loopexit($this->resource, $timeout)) {
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		if (!event_base_loopexit($resource, $timeout)) {
 			throw new Exception(
 				"Can't set loop exit timeout (event_base_loopexit)"
 			);
@@ -274,11 +321,11 @@ class EventBase
 	 *
 	 * @param int $value
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function priorityInit($value = self::MAX_PRIORITY)
 	{
-		$this->checkResourse();
+		$this->checkResource();
 		if (!event_base_priority_init($this->resource, ++$value)) {
 			throw new Exception(
 				"Can't set the maximum priority level of the event base"
@@ -294,7 +341,7 @@ class EventBase
 	 *
 	 * @throws Exception if resource is already freed
 	 */
-	public function checkResourse()
+	public function checkResource()
 	{
 		if (!$this->resource) {
 			throw new Exception(
@@ -305,9 +352,7 @@ class EventBase
 
 
 	/**
-	 * Adds a new named timer to the base or customize existing.
-	 *
-	 * @throws Exception
+	 * Adds a new named timer to the base or customize existing
 	 *
 	 * @param string $name Timer name
 	 * @param int  $interval Interval
@@ -321,6 +366,8 @@ class EventBase
 	 * @param mixed $arg   Additional timer argument
 	 * @param bool  $start Whether to start timer
 	 * @param int   $q     Interval multiply factor
+	 *
+	 * @throws Exception
 	 */
 	public function timerAdd($name, $interval = null, $callback = null,
 		$arg = null, $start = true, $q = 1000000)
@@ -339,6 +386,7 @@ class EventBase
 			$event = new Event();
 			$event->setTimer(array($this, '_onTimer'), $name)
 					->setBase($this);
+
 			$this->timers[$name] = array(
 				'name'     => $name,
 				'callback' => $callback,
@@ -349,19 +397,19 @@ class EventBase
 				'i'        => 0,
 			);
 		} else {
+			/** @var $timer Event[]|mixed[] */
 			$timer = &$this->timers[$name];
-			/** @var $event Event */
-			$event = $timer['event'];
-			$event->del();
-			if ($callback) {
-				$timer['callback'] = $callback;
-			}
-			if ($interval > 1) {
-				$timer['interval'] = $interval;
-			}
-			if ($arg !== null) {
-				$timer['arg'] = $arg;
-			}
+			$timer['event']->del();
+
+			$callback
+				&& $timer['callback'] = $callback;
+
+			$interval > 0
+				&& $timer['interval'] = $interval;
+
+			isset($arg)
+				&& $timer['arg'] = $arg;
+
 			$timer['i'] = 0;
 		}
 
@@ -388,19 +436,20 @@ class EventBase
 				"Unknown timer '{$name}'. Add timer before using."
 			);
 		}
+
+		/** @var $timer Event[]|mixed[] */
 		$timer = &$this->timers[$name];
-		if ($resetIteration) {
-			$timer['i'] = 0;
-		}
-		if ($arg !== null) {
-			$timer['arg'] = $arg;
-		}
-		if ($interval > 0) {
-			$timer['interval'] = $interval;
-		}
-		/** @var $event Event */
-		$event = $timer['event'];
-		$event->add((int)($timer['interval'] * $timer['q']));
+
+		$resetIteration
+			&& $timer['i'] = 0;
+
+		isset($arg)
+			&& $timer['arg'] = $arg;
+
+		$interval > 0
+			&& $timer['interval'] = $interval;
+
+		$timer['event']->add((int)($timer['interval'] * $timer['q']));
 	}
 
 	/**
@@ -416,10 +465,10 @@ class EventBase
 		if (!isset($this->timers[$name])) {
 			return;
 		}
+
+		/** @var $timer Event[]|mixed[] */
 		$timer = &$this->timers[$name];
-		/** @var $event Event */
-		$event = $timer['event'];
-		$event->del();
+		$timer['event']->del();
 		$timer['i'] = 0;
 	}
 
@@ -433,10 +482,9 @@ class EventBase
 		if (!isset($this->timers[$name])) {
 			return;
 		}
-		$timer = &$this->timers[$name];
-		/** @var $event Event */
-		$event = $timer['event'];
-		$event->free();
+		/** @var $timer Event[] */
+		$timer = $this->timers[$name];
+		$timer['event']->free();
 		unset($this->timers[$name]);
 	}
 
@@ -466,23 +514,22 @@ class EventBase
 	 */
 	public function _onTimer($fd, $event, $args)
 	{
-		$name = $args[1];
-
 		// Skip deleted timers
-		if (!isset($this->timers[$name])) {
+		if (!isset($this->timers[$name = $args[1]])) {
 			return;
 		}
 
 		// Invoke callback
 		$timer = &$this->timers[$name];
-		$res = call_user_func(
+		if (call_user_func(
 			$timer['callback'],
 			$name,
 			$timer['arg'],
 			++$timer['i'],
-			$this
-		);
-		if ($res) {
+			$this,
+			$event,
+			$fd
+		)) {
 			$this->timerStart(
 				$name, null, null, false
 			);

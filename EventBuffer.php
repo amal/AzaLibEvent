@@ -4,7 +4,7 @@ namespace Aza\Components\LibEvent;
 use Aza\Components\LibEvent\Exceptions\Exception;
 
 /**
- * LibEvent buffered event resourse wrapper
+ * LibEvent buffered event resource wrapper
  *
  * @link http://www.wangafu.net/~nickm/libevent-book/
  *
@@ -44,14 +44,14 @@ class EventBuffer extends EventBasic
 
 
 	/**
-	 * Default <i>lowmark</i>
+	 * Default <i>lowmark</i> in bytes
 	 *
 	 * @see setWatermark
 	 */
 	const DEF_LOWMARK = 1;
 
 	/**
-	 * Default <i>highmark</i>
+	 * Default <i>highmark</i> in bytes
 	 *
 	 * @see setWatermark
 	 */
@@ -80,9 +80,103 @@ class EventBuffer extends EventBasic
 
 
 	/**
+	 * Last enabled events
+	 *
+	 * @see enable
+	 *
+	 * @var int|null
+	 */
+	protected $events;
+
+	/**
+	 * Stream
+	 *
 	 * @var resource
 	 */
-	public $stream;
+	protected $stream;
+
+	/**
+	 * Last read timeout
+	 *
+	 * @see setTimout
+	 *
+	 * @var int|null
+	 */
+	protected $read_timeout;
+
+	/**
+	 * Last write timeout
+	 *
+	 * @see setTimout
+	 *
+	 * @var int|null
+	 */
+	protected $write_timeout;
+
+	/**
+	 * Last marks events
+	 *
+	 * @see setWatermark
+	 *
+	 * @var int|null
+	 */
+	protected $mark_events;
+
+	/**
+	 * Last lowmark
+	 *
+	 * @see setWatermark
+	 *
+	 * @var int|null
+	 */
+	protected $lowmark;
+
+	/**
+	 * Last highmark
+	 *
+	 * @see setWatermark
+	 *
+	 * @var int|null
+	 */
+	protected $highmark;
+
+	/**
+	 * Last priority
+	 *
+	 * @see setPriority
+	 *
+	 * @var int|null
+	 */
+	protected $priority;
+
+	/**
+	 * Read callback
+	 *
+	 * @var callable|null
+	 */
+	protected $readcb;
+
+	/**
+	 * Write callback
+	 *
+	 * @var callable|null
+	 */
+	protected $writecb;
+
+	/**
+	 * Error callback
+	 *
+	 * @var callable
+	 */
+	protected $errorcb;
+
+	/**
+	 * Callbacks argument
+	 *
+	 * @var mixed
+	 */
+	protected $arg;
+
 
 
 	/**
@@ -123,14 +217,75 @@ class EventBuffer extends EventBasic
 		$writecb, $errorcb, $arg = null)
 	{
 		parent::__construct();
-		$this->stream = $stream;
+		$this->init(
+			$stream, $readcb, $writecb, $errorcb, $arg
+		);
+	}
+
+	/**
+	 * Helper initialization method
+	 *
+	 * @throws Exception
+	 *
+	 * @param resource $stream
+	 * @param callback|null $readcb
+	 * @param callback|null $writecb
+	 * @param callback $errorcb
+	 * @param mixed $arg [optional]
+	 */
+	protected function init($stream, $readcb,
+		$writecb, $errorcb, $arg = null)
+	{
 		if (!$this->resource = event_buffer_new(
 			$stream, $readcb, $writecb, $errorcb,
 			array($this, $arg)
 		)) {
 			throw new Exception(
-				"Can't create new buffered event resourse (event_buffer_new)"
+				"Can't create new buffered event resource (event_buffer_new)"
 			);
+		}
+		$this->stream  = $stream;
+		$this->readcb  = $readcb;
+		$this->writecb = $writecb;
+		$this->errorcb = $errorcb;
+		$this->arg     = $arg;
+	}
+
+	/**
+	 * Full event reinitialization
+	 *
+	 * @param bool $enable Enable event
+	 */
+	public function reinit($enable = true)
+	{
+		event_buffer_free($this->resource);
+
+		$this->init(
+			$this->stream,
+			$this->readcb,
+			$this->writecb,
+			$this->errorcb,
+			$this->arg
+		);
+		$this->setBase($this->base);
+		if ($this->mark_events) {
+			$this->setWatermark(
+				$this->mark_events,
+				$this->lowmark,
+				$this->highmark
+			);
+		}
+		if ($this->priority) {
+			$this->setPriority($this->priority);
+		}
+		if ($this->read_timeout || $this->write_timeout) {
+			$this->setTimout(
+				$this->read_timeout,
+				$this->write_timeout
+			);
+		}
+		if ($enable) {
+			$this->enable($this->events);
 		}
 	}
 
@@ -142,17 +297,27 @@ class EventBuffer extends EventBasic
 	 *
 	 * @throws Exception
 	 *
-	 * @param int $events Any combination of EV_READ and EV_WRITE.
+	 * @param int|bool $events
+	 * Any combination of EV_READ and EV_WRITE.
 	 *
-	 * @return self
+	 * @return $this
 	 */
-	public function disable($events)
+	public function disable($events = EV_READ)
 	{
-		$this->checkResourse();
-		if (!event_buffer_disable($this->resource, $events)) {
-			throw new Exception(
-				"Can't disable buffered event (event_buffer_disable)"
-			);
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		$events || $events = $this->events;
+		if (!event_buffer_disable($resource, $events)) {
+			// Trigger already ready events
+			$this->base->loop(EVLOOP_NONBLOCK);
+
+			// Try again
+			if (!event_buffer_disable($resource, $events)) {
+				throw new Exception(
+					"Can't disable buffered event (event_buffer_disable)"
+				);
+			}
 		}
 		return $this;
 	}
@@ -166,35 +331,41 @@ class EventBuffer extends EventBasic
 	 *
 	 * @param int $events Any combination of EV_READ and EV_WRITE.
 	 *
-	 * @return self
+	 * @return $this
 	 */
-	public function enable($events)
+	public function enable($events = EV_READ)
 	{
-		$this->checkResourse();
-		if (!event_buffer_enable($this->resource, $events)) {
-			throw new Exception(
-				"Can't enable buffered event (event_buffer_enable)"
-			);
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		$events || $events = $this->events;
+		if (!event_buffer_enable($resource, $events)) {
+			// Resource is damaged, so reinit
+			$this->reinit(false);
+
+			// Try again
+			if (!event_buffer_enable($this->resource, $events)) {
+				throw new Exception(
+					"Can't enable buffered event (event_buffer_enable)"
+				);
+			}
 		}
+		$this->events = $events;
 		return $this;
 	}
 
 
 	/**
-	 * Associate event with an event base
+	 * {@inheritdoc}
 	 *
 	 * @see event_buffer_base_set
 	 *
 	 * @throws Exception
-	 *
-	 * @param EventBase $event_base
-	 *
-	 * @return self
 	 */
 	public function setBase($event_base)
 	{
-		$this->checkResourse();
-		$event_base->checkResourse();
+		$this->checkResource();
+		$event_base->checkResource();
 		if (!event_buffer_base_set(
 			$this->resource, $event_base->resource
 		)) {
@@ -206,20 +377,23 @@ class EventBuffer extends EventBasic
 	}
 
 	/**
-	 * Destroys the buffered event and frees all the resources associated.
+	 * {@inheritdoc}
 	 *
 	 * @see event_buffer_free
-	 *
-	 * @throws Exception
-	 *
-	 * @return self
 	 */
-	public function free()
+	public function free($afterForkCleanup = false)
 	{
 		parent::free();
+		// We need to use it carefully, cause it can
+		// damage resource in the parent process
 		if ($this->resource) {
 			event_buffer_free($this->resource);
 			$this->resource = null;
+			$this->stream   = null;
+			$this->readcb   = null;
+			$this->writecb  = null;
+			$this->errorcb  = null;
+			$this->arg      = null;
 		}
 		return $this;
 	}
@@ -230,16 +404,16 @@ class EventBuffer extends EventBasic
 	 *
 	 * @see event_buffer_read
 	 *
-	 * @param int $data_size Data size in bytes.
+	 * @param int $data_size Data size in bytes
 	 *
 	 * @return string|bool Data from buffer or FALSE
 	 */
 	public function read($data_size)
 	{
-		$this->checkResourse();
-		return event_buffer_read(
-			$this->resource, $data_size
-		);
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		return event_buffer_read($resource, $data_size);
 	}
 
 	/**
@@ -256,16 +430,57 @@ class EventBuffer extends EventBasic
 	 * Optional size parameter. Writes all the data by default
 	 * </p>
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function write($data, $data_size = -1)
 	{
-		$this->checkResourse();
-		if (!event_buffer_write($this->resource, $data, $data_size)) {
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		// Write data
+		if (!event_buffer_write($resource, $data, $data_size)) {
 			throw new Exception(
 				"Can't write data to the buffered event (event_buffer_write)"
 			);
 		}
+		return $this;
+	}
+
+
+	/**
+	 * Reads all available data from buffer
+	 *
+	 * @param int $read_portion_size Read portion size in bytes
+	 *
+	 * @return string Data from buffer
+	 *
+	 * @TODO: Limit max size
+	 */
+	public function readAll($read_portion_size)
+	{
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		$buf = '';
+		while ('' != $str = event_buffer_read($resource, $read_portion_size)) {
+			$buf .= $str;
+		}
+
+		return $buf;
+	}
+
+	/**
+	 * Reads all available data from buffer and cleans it
+	 *
+	 * @return $this
+	 */
+	public function readAllClean()
+	{
+		// Save one method call (checkResource)
+		($resource = $this->resource) || $this->checkResource();
+
+		while ('' != event_buffer_read($resource, 0x80000));
+
 		return $this;
 	}
 
@@ -281,13 +496,15 @@ class EventBuffer extends EventBasic
 	 * Valid PHP stream, must be castable to file descriptor.
 	 * </p>
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function setStream($stream)
 	{
-		$this->checkResourse();
+		$this->checkResource();
 		if (!event_buffer_fd_set($this->resource, $stream)) {
-			throw new Exception("Can't set buffered event stream (event_buffer_fd_set)");
+			throw new Exception(
+				"Can't set buffered event stream (event_buffer_fd_set)"
+			);
 		}
 		$this->stream = $stream;
 		return $this;
@@ -323,11 +540,11 @@ class EventBuffer extends EventBasic
 	 * to each of the callbacks.
 	 * </p>
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function setCallback($readcb, $writecb, $errorcb, $arg = null)
 	{
-		$this->checkResourse();
+		$this->checkResource();
 		if (!event_buffer_set_callback(
 			$this->resource, $readcb, $writecb, $errorcb,
 			array($this, $arg)
@@ -336,6 +553,10 @@ class EventBuffer extends EventBasic
 				"Can't set buffered event callbacks (event_buffer_set_callback)"
 			);
 		}
+		$this->readcb  = $readcb;
+		$this->writecb = $writecb;
+		$this->errorcb = $errorcb;
+		$this->arg     = $arg;
 		return $this;
 	}
 
@@ -350,15 +571,17 @@ class EventBuffer extends EventBasic
 	 * @param int $read_timeout  Read timeout (in seconds).
 	 * @param int $write_timeout Write timeout (in seconds).
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function setTimout($read_timeout = self::DEF_TIMEOUT_READ,
 		$write_timeout = self::DEF_TIMEOUT_WRITE)
 	{
-		$this->checkResourse();
+		$this->checkResource();
 		event_buffer_timeout_set(
 			$this->resource, $read_timeout, $write_timeout
 		);
+		$this->read_timeout  = $read_timeout;
+		$this->write_timeout = $write_timeout;
 		return $this;
 	}
 
@@ -372,7 +595,7 @@ class EventBuffer extends EventBasic
 	 * the write callback is invoked whenever the
 	 * buffered data falls below the <i>lowmark</i>.</p>
 	 *
-	 * @see event_buffer_timeout_set
+	 * @see event_buffer_watermark_set
 	 *
 	 * @throws Exception
 	 *
@@ -380,15 +603,18 @@ class EventBuffer extends EventBasic
 	 * @param int $lowmark  Low watermark.
 	 * @param int $highmark High watermark.
 	 *
-	 * @return self
+	 * @return $this
 	 */
 	public function setWatermark($events, $lowmark = self::DEF_LOWMARK,
 		$highmark = self::DEF_HIGHMARK)
 	{
-		$this->checkResourse();
+		$this->checkResource();
 		event_buffer_watermark_set(
 			$this->resource, $events, $lowmark, $highmark
 		);
+		$this->mark_events = $events;
+		$this->lowmark     = $lowmark;
+		$this->highmark    = $highmark;
 		return $this;
 	}
 
@@ -403,18 +629,19 @@ class EventBuffer extends EventBasic
 	 * event base (see {@link event_base_priority_init}()).
 	 * </p>
 	 *
-	 * @return self
+	 * @return $this
 	 *
 	 * @throws Exception
 	 */
 	public function setPriority($value = self::DEF_PRIORITY)
 	{
-		$this->checkResourse();
+		$this->checkResource();
 		if (!event_buffer_priority_set($this->resource, $value)) {
 			throw new Exception(
 				"Can't set buffered event priority to {$value} (event_buffer_priority_set)"
 			);
 		}
+		$this->priority = $value;
 		return $this;
 	}
 }

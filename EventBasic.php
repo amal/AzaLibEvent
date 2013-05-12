@@ -37,18 +37,23 @@ abstract class EventBasic
 	 *
 	 * @var resource
 	 */
-	public $resource;
+	protected $resource;
 
 	/**
+	 * Event loop
+	 *
 	 * @var EventBase
 	 */
-	public $base;
+	protected $base;
 
 
 	/**
 	 * Creates a new event resource.
 	 *
-	 * @throws Exception if Libevent isn't available
+	 * @throws Exception <p>
+	 * If Libevent isn't available or can't create
+	 * new event resource.
+	 * </p>
 	 */
 	public function __construct()
 	{
@@ -71,22 +76,29 @@ abstract class EventBasic
 
 	/**
 	 * Destroys the event and frees all the resources associated.
+	 *
+	 * @param bool $afterForkCleanup [optional] <p>
+	 * Special handling of cleanup after fork
+	 * </p>
+	 *
+	 * @return $this
 	 */
-	public function free()
+	public function free($afterForkCleanup = false)
 	{
 		if ($this->base) {
 			unset($this->base->events[$this->id]);
 			$this->base = null;
 		}
+		return $this;
 	}
 
 
 	/**
-	 * Associate buffered event with an event base
+	 * Associate event with an event base
 	 *
 	 * @param EventBase $event_base
 	 *
-	 * @return static
+	 * @return $this
 	 */
 	public function setBase($event_base)
 	{
@@ -101,7 +113,7 @@ abstract class EventBasic
 	 *
 	 * @throws Exception if resource is already freed
 	 */
-	protected function checkResourse()
+	protected function checkResource()
 	{
 		if (!$this->resource) {
 			throw new Exception(

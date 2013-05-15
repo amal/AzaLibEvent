@@ -14,7 +14,7 @@
 		{"name": "AzaGroup Members"}
 	],
 	"require": {
-		"php": ">=5.3.3",
+		"php": ">=5.2",
 		"aza/clibase": "~1.0"
 	},
 	"suggest": {

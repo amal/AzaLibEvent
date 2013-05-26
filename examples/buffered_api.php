@@ -1,6 +1,5 @@
 <?php
 
-use Aza\Components\CliBase\Base;
 use Aza\Components\LibEvent\EventBase;
 use Aza\Components\LibEvent\EventBuffer;
 
@@ -55,15 +54,24 @@ function print_line($buf, $args)
 function error_func($buf, $what, $args) {}
 
 
-// I use Base::getEventBase() to operate always with the
+// I use EventBase::getMainLoop() here to operate always with the
 // same instance, but you can simply use "new EventBase()"
 
 // Get event base
-$base = Base::getEventBase();
+$loop = EventBase::getMainLoop();
 
 // Create buffered event
-$ev = new EventBuffer(STDIN, 'print_line', null, 'error_func', $base);
-$ev->setBase($base)->enable(EV_READ);
+$ev = new EventBuffer(STDIN, 'print_line', null, 'error_func', $loop);
+$ev->setBase($loop)->enable(EV_READ);
 
-// Start loop
-$base->loop();
+// Start event loop once
+$loop->loop(EVLOOP_NONBLOCK);
+
+// Fork support test
+//if (!$pid = $loop->fork()) {
+//	exit; // exit in child
+//}
+//pcntl_waitpid($pid, $status, WUNTRACED);
+
+// Start event loop
+$loop->loop();

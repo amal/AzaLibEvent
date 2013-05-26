@@ -17,6 +17,9 @@
 		"php": ">=5.2",
 		"aza/clibase": "~1.0"
 	},
+	"require-dev": {
+		"aza/socket": "~1.0"
+	},
 	"suggest": {
 		"ext-libevent": "Really it's a requirement for normal work."
 	},

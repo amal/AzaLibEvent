@@ -386,8 +386,9 @@ class EventBuffer extends EventBasic
 		parent::free();
 		// We need to use it carefully, cause it can
 		// damage resource in the parent process
-		if ($this->resource) {
-			event_buffer_free($this->resource);
+		if ($resource = $this->resource) {
+			event_buffer_disable($resource, EV_READ|EV_WRITE);
+			event_buffer_free($resource);
 			$this->resource = null;
 			$this->stream   = null;
 			$this->readcb   = null;

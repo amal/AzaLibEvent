@@ -1,12 +1,13 @@
 <?php
 
 namespace Aza\Components\LibEvent;
-use Aza\Components\LibEvent\Exceptions\Exception;
 use Aza\Components\CliBase\Base;
+use Aza\Components\LibEvent\Exceptions\Exception;
 
 /**
  * LibEvent base resource wrapper (event loop)
  *
+ * @link http://php.net/libevent
  * @link http://www.wangafu.net/~nickm/libevent-book/
  *
  * @uses libevent
@@ -27,11 +28,33 @@ class EventBase
 
 
 	/**
+	 * Whether Libevent supported
+	 *
+	 * @var bool
+	 */
+	public static $hasLibevent = false;
+
+	/**
 	 * Unique base IDs counter
 	 *
 	 * @var int
 	 */
 	private static $counter = 0;
+
+	/**
+	 * Event loops pool [id => loop]
+	 *
+	 * @var self[]
+	 */
+	protected static $loops = array();
+
+	/**
+	 * Main event loop
+	 *
+	 * @var self|null
+	 */
+	protected static $mainLoop;
+
 
 	/**
 	 * Unique base ID
@@ -50,7 +73,7 @@ class EventBase
 	/**
 	 * Events
 	 *
-	 * @var EventBasic[]
+	 * @var Event[]|EventBuffer[]
 	 */
 	public $events = array();
 
@@ -60,6 +83,61 @@ class EventBase
 	 * @var array[]
 	 */
 	protected $timers = array();
+
+	/**
+	 * Started loop flag
+	 */
+	protected $inLoop = false;
+
+
+
+	/**
+	 * Returns global shared event loop
+	 *
+	 * @param bool $create [optional] <p>
+	 * Create new event loop if there is no initialized one.
+	 * </p>
+	 *
+	 * @return self|null
+	 */
+	public static function getMainLoop($create = true)
+	{
+		return self::$mainLoop ?: ($create
+				? (self::$mainLoop = new EventBase())
+				: null);
+	}
+
+	/**
+	 * Sets or replaces global shared event loop
+	 *
+	 * @param self $loop
+	 */
+	public static function setMainLoop($loop)
+	{
+		self::$mainLoop = $loop;
+	}
+
+	/**
+	 * Cleans global shared event loop
+	 */
+	public static function cleanMainLoop()
+	{
+		self::$mainLoop && self::$mainLoop->free();
+		self::$mainLoop = null;
+	}
+
+	/**
+	 * Cleans all event loops
+	 */
+	public static function cleanAllLoops()
+	{
+		$loops = self::$loops;
+		foreach ($loops as $loop) {
+			$loop->free();
+		}
+		self::cleanMainLoop();
+		self::$loops = array();
+	}
 
 
 
@@ -91,7 +169,7 @@ class EventBase
 	 */
 	protected function init($initPriority = true)
 	{
-		if (!Base::$hasLibevent) {
+		if (!self::$hasLibevent) {
 			throw new Exception(
 				'You need to install PECL extension "Libevent" to use this class'
 			);
@@ -100,11 +178,55 @@ class EventBase
 				"Can't create event base resource (event_base_new)"
 			);
 		}
-		$initPriority && $this->priorityInit();
-		$this->id = ++self::$counter;
+
+		$initPriority
+			&& $this->priorityInit();
+
+		self::$loops[
+			$this->id = ++self::$counter
+		] = $this;
+
 		return $this;
 	}
 
+
+	/**
+	 * Forks the currently running process
+	 *
+	 * @see Base::fork
+	 *
+	 * @return int the PID of the child process is returned
+	 * in the parent's thread of execution, and a 0 is
+	 * returned in the child's thread of execution.
+	 *
+	 * @throws Exception if could not fork
+	 */
+	public function fork()
+	{
+		// Prepare loops
+		$loops = &self::$loops;
+		foreach ($loops as $loop) {
+			$loop->beforeFork();
+		}
+
+		$pid = Base::fork(function() use ($loops) {
+			foreach ($loops as $loop) {
+				$loop->afterFork();
+			}
+		});
+
+		// Child
+		if (0 === $pid) {
+			unset($loops[$this->id]);
+			foreach ($loops as $loop) {
+				$loop->free();
+			}
+			$this->reinitialize();
+			self::setMainLoop($this);
+		}
+
+		return $pid;
+	}
 
 	/**
 	 * Prepares event base for forking
@@ -112,16 +234,25 @@ class EventBase
 	 *
 	 * Use this method before fork in parent!
 	 */
-	public function beforeFork()
+	protected function beforeFork()
 	{
-		if ($this->events) {
-			// Trigger already ready events
-			$this->loop(EVLOOP_NONBLOCK);
+		// Trigger already ready events
+		$this->inLoop || event_base_loop(
+			$this->resource, EVLOOP_NONBLOCK
+		);
 
-			// Disable buffered events
+		if (function_exists('event_base_reinit')) {
+			// Libevent >= 1.4.3-alpha
+		}
+		else if ($this->events) {
 			foreach ($this->events as $e) {
+				// Disable buffered events
 				if ($e instanceof EventBuffer) {
 					$e->disable(0);
+				}
+				// Remove simple events
+				else {
+					$e->beforeFork();
 				}
 			}
 		}
@@ -131,14 +262,24 @@ class EventBase
 	 * Enables all disabled events
 	 *
 	 * Use this method after fork in parent!
+	 *
+	 * @see event_base_reinit
 	 */
-	public function afterFork()
+	protected function afterFork()
 	{
-		// Enable buffered events
-		if ($this->events) {
+		if (function_exists('event_base_reinit')) {
+			// Libevent >= 1.4.3-alpha
+			event_base_reinit($this->resource);
+		}
+		else if ($this->events) {
 			foreach ($this->events as $e) {
+				// Enable buffered events
 				if ($e instanceof EventBuffer) {
 					$e->enable(0);
+				}
+				// Readd simple events
+				else {
+					$e->afterFork();
 				}
 			}
 		}
@@ -150,14 +291,20 @@ class EventBase
 	 *
 	 * Use this method after fork in child!
 	 *
+	 * @see event_base_reinit
+	 *
 	 * @param bool $initPriority
 	 * Whether to init priority with default value
-	 *
-	 * @return $this
 	 */
-	public function reinitialize($initPriority = true)
+	protected function reinitialize($initPriority = true)
 	{
-		return $this->free(true)->init($initPriority);
+		if (function_exists('event_base_reinit')) {
+			// Libevent >= 1.4.3-alpha
+			$this->freeAttachedEvents(true);
+			event_base_reinit($this->resource);
+		} else {
+			$this->free(true)->init($initPriority);
+		}
 	}
 
 
@@ -191,6 +338,7 @@ class EventBase
 			@event_base_free($this->resource);
 			$this->resource = null;
 		}
+		unset(self::$loops[$this->id]);
 		return $this;
 	}
 
@@ -253,12 +401,24 @@ class EventBase
 		// Save one method call (checkResource)
 		($resource = $this->resource) || $this->checkResource();
 
-		$res = event_base_loop($resource, $flags);
-		if ($res === -1) {
+		// Reentrant invocation protection
+		if ($this->inLoop) {
+			$this->loopBreak();
+			throw new Exception(
+				"Reentrant invocation ($resource). "
+				."Only one event_base_loop can run on each event_base at once."
+			);
+		}
+
+		$this->inLoop = true;
+		if (-1 === $res = event_base_loop($resource, $flags)) {
+			$this->inLoop = false;
 			throw new Exception(
 				"Can't start base loop (event_base_loop)"
 			);
 		}
+		$this->inLoop = false;
+
 		return $res;
 	}
 
@@ -350,12 +510,25 @@ class EventBase
 		}
 	}
 
+	/**
+	 * Returns if loop is started
+	 *
+	 * @return bool
+	 */
+	public function getIsInLoop()
+	{
+		return $this->inLoop;
+	}
+
 
 	/**
 	 * Adds a new named timer to the base or customize existing
 	 *
 	 * @param string $name Timer name
-	 * @param int  $interval Interval
+	 * @param int  $interval <p>
+	 * Interval. In seconds by default. See <b>$q</b>
+	 * argument for details.
+	 * </p>
 	 * @param callback $callback <p>
 	 * Callback function to be called when the interval expires.<br/>
 	 * <tt>function(string $timer_name, mixed $arg,
@@ -421,6 +594,8 @@ class EventBase
 	/**
 	 * Starts timer
 	 *
+	 * @see timerAdd
+	 *
 	 * @param string $name           Timer name
 	 * @param int    $interval       Interval
 	 * @param mixed  $arg            Additional timer argument
@@ -458,6 +633,8 @@ class EventBase
 	 * <p>Don't call from timer callback.
 	 * Return FALSE instead - see {@link timerAdd}().</p>
 	 *
+	 * @see timerAdd
+	 *
 	 * @param string $name Timer name
 	 */
 	public function timerStop($name)
@@ -475,6 +652,8 @@ class EventBase
 	/**
 	 * Completely destroys timer
 	 *
+	 * @see timerAdd
+	 *
 	 * @param string $name Timer name
 	 */
 	public function timerDelete($name)
@@ -491,6 +670,8 @@ class EventBase
 	/**
 	 * Return whther timer with such name exists in the base
 	 *
+	 * @see timerAdd
+	 *
 	 * @param string $name Timer name
 	 *
 	 * @return bool
@@ -505,7 +686,6 @@ class EventBase
 	 *
 	 * @see Event::setTimer
 	 *
-	 * @access protected
 	 * @internal
 	 *
 	 * @param null  $fd
@@ -538,3 +718,6 @@ class EventBase
 		}
 	}
 }
+
+// libevent extension
+EventBase::$hasLibevent = extension_loaded('libevent');

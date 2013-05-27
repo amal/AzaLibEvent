@@ -4,6 +4,16 @@ CHANGELOG
 ## Version 1.1 (work in progress)
 
 
+26.05.2013
+- **MINOR:** More complex examples (amal)
+- **IMPROVED:** Better support for fork in the newest libevent versions (amal)
+- **FEATURE:** Full fork control with `EventBase::fork()` (amal)
+- **FEATURE:** Event loops manager moved from `CliBase` and improved (amal)
+
+25.05.2013
+- **FEATURE:** Reentrant loop invocation protection (needed for the newest libevent versions) (amal)
+- **IMPROVED:** Tests added (amal)
+
 09.05.2013
 - **FEATURE:** `EventBuffer` reinitialization on the fly (amal)
 - **FEATURE:** `EventBuffer::readAll()` and `EventBuffer::readAllClean()` helper methods (amal)

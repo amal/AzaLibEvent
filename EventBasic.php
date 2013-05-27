@@ -2,7 +2,6 @@
 
 namespace Aza\Components\LibEvent;
 use Aza\Components\LibEvent\Exceptions\Exception;
-use Aza\Components\CliBase\Base;
 
 /**
  * LibEvent "basic" event functionality
@@ -57,7 +56,7 @@ abstract class EventBasic
 	 */
 	public function __construct()
 	{
-		if (!Base::$hasLibevent) {
+		if (!EventBase::$hasLibevent) {
 			throw new Exception(
 				'You need to install PECL extension "Libevent" to use this class'
 			);

@@ -43,14 +43,72 @@ function print_line($fd, $events, $args)
 	echo fgets($fd);
 }
 
+/**
+ * Timer callback
+ *
+ * @param string    $timer_name
+ * @param mixed     $arg
+ * @param int       $iteration
+ * @param EventBase $event_base
+ *
+ * @return bool
+ */
+function timer($timer_name, $arg, $iteration, $event_base)
+{
+	echo "timer #$iteration: " . microtime(true) . PHP_EOL;
+	return true;
+}
+
+/**
+ * Signal callback
+ *
+ * @param int   $signo
+ * @param int   $events
+ * @param array $arg
+ */
+function signal($signo, $events, $arg)
+{
+	echo "signal caught - " . $arg[2] . PHP_EOL;
+}
+
+
 // Create base
-$base = new EventBase;
+$loop = new EventBase;
 
 // Setup and enable event
 $ev = new Event();
-$ev->set(STDIN, EV_READ|EV_PERSIST, 'print_line', $base)
-		->setBase($base)
-		->add();
+$ev->set(STDIN, EV_READ|EV_PERSIST, 'print_line', $loop)
+	->setBase($loop)
+	->add();
+
+// Setup timer
+$loop->timerAdd('main', 4, 'timer');
+
+// Setup signal handler
+$evS1 = new Event();
+$evS1->setSignal(SIGWINCH, 'signal')
+	->setBase($loop)
+	->add();
+
+posix_kill(posix_getpid(), SIGWINCH);
+
+// Start event loop once
+$loop->loop(EVLOOP_NONBLOCK);
+
+// Fork support test
+//if (!$pid = $loop->fork()) {
+//	exit; // exit in child
+//}
+//pcntl_waitpid($pid, $status, WUNTRACED);
+
+// Setup signal handler
+$evS2 = new Event();
+$evS2->setSignal(SIGCHLD, 'signal')
+	->setBase($loop)
+	->add();
+
+posix_kill(posix_getpid(), SIGWINCH);
+posix_kill(posix_getpid(), SIGCHLD);
 
 // Start event loop
-$base->loop();
+$loop->loop();

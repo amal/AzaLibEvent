@@ -19,6 +19,47 @@ use Aza\Components\CliBase\Base;
 class Event extends EventBasic
 {
 	/**
+	 * Last addition timeout
+	 *
+	 * @see add
+	 *
+	 * @var int
+	 */
+	protected $timeout;
+
+	/**
+	 * Signal number
+	 *
+	 * @see setSignal
+	 *
+	 * @var int|null
+	 */
+	protected $signo;
+
+	/**
+	 * Read callback
+	 *
+	 * @var callable|null
+	 */
+	protected $cb;
+
+	/**
+	 * Whether the event will persist
+	 *
+	 * @var bool
+	 */
+	protected $persist = true;
+
+	/**
+	 * Callbacks argument
+	 *
+	 * @var mixed
+	 */
+	protected $arg;
+
+
+
+	/**
 	 * {@inheritdoc}
 	 *
 	 * @see event_new
@@ -26,11 +67,56 @@ class Event extends EventBasic
 	public function __construct()
 	{
 		parent::__construct();
+		$this->init();
+	}
+
+	/**
+	 * Helper initialization method
+	 *
+	 * @throws Exception
+	 */
+	protected function init()
+	{
 		if (!$this->resource = event_new()) {
 			throw new Exception(
 				"Can't create new event resource (event_new)"
 			);
 		}
+	}
+
+
+	/**
+	 * Prepares event for forking in parent
+	 */
+	public function beforeFork()
+	{
+		if ($this->signo) {
+			echo 'beforeFork: ' . $this->resource . PHP_EOL;
+			$base = $this->base;
+			$this->free();
+			$this->base = $base;
+		} else {
+			$this->del();
+		}
+	}
+
+	/**
+	 * Prepares event after forking in parent
+	 */
+	public function afterFork()
+	{
+		if ($this->signo) {
+			$this->init();
+			$this->setSignal(
+				$this->signo,
+				$this->cb,
+				$this->persist,
+				$this->arg
+			);
+			$this->setBase($this->base);
+			echo 'afterFork: ' . $this->resource . PHP_EOL;
+		}
+		$this->add($this->timeout);
 	}
 
 
@@ -55,6 +141,7 @@ class Event extends EventBasic
 				"Can't add event (event_add)"
 			);
 		}
+		$this->timeout = $timeout;
 		return $this;
 	}
 
@@ -188,7 +275,7 @@ class Event extends EventBasic
 	 * </p>
 	 * @param callback $callback <p>
 	 * Callback function to be called when the matching event occurs.
-	 * <br><tt>function(null $fd, int $events(8:EV_SIGNAL),
+	 * <br><tt>function(int $signo, int $events(8:EV_SIGNAL),
 	 * array $arg(Event $event, mixed $arg, int $signo)){}</tt>
 	 * </p>
 	 * @param bool $persist <p>
@@ -222,6 +309,12 @@ class Event extends EventBasic
 				"Can't prepare event (event_set) for $name ($signo) signal"
 			);
 		}
+
+		$this->signo   = $signo;
+		$this->cb      = $callback;
+		$this->persist = $persist;
+		$this->arg     = $arg;
+
 		return $this;
 	}
 

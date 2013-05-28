@@ -263,9 +263,11 @@ class EventBase
 	 *
 	 * Use this method after fork in parent!
 	 *
+	 * @internal Public for PHP 5.3
+	 *
 	 * @see event_base_reinit
 	 */
-	protected function afterFork()
+	public function afterFork()
 	{
 		if (function_exists('event_base_reinit')) {
 			// Libevent >= 1.4.3-alpha

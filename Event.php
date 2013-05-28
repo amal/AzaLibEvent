@@ -19,6 +19,14 @@ use Aza\Components\CliBase\Base;
 class Event extends EventBasic
 {
 	/**
+	 * Default priority
+	 *
+	 * @see setPriority
+	 */
+	const DEF_PRIORITY = 10;
+
+
+	/**
 	 * Last addition timeout
 	 *
 	 * @see add
@@ -91,7 +99,6 @@ class Event extends EventBasic
 	public function beforeFork()
 	{
 		if ($this->signo) {
-			echo 'beforeFork: ' . $this->resource . PHP_EOL;
 			$base = $this->base;
 			$this->free();
 			$this->base = $base;
@@ -114,7 +121,6 @@ class Event extends EventBasic
 				$this->arg
 			);
 			$this->setBase($this->base);
-			echo 'afterFork: ' . $this->resource . PHP_EOL;
 		}
 		$this->add($this->timeout);
 	}
@@ -191,6 +197,35 @@ class Event extends EventBasic
 
 		return parent::setBase($event_base);
 	}
+
+	/**
+	 * Assign a priority to an event.
+	 *
+	 * @see event_priority_set
+	 *
+	 * @param int $value <p>
+	 * Priority level. Cannot be less than zero and
+	 * cannot exceed maximum priority level of the
+	 * event base (see {@link event_base_priority_init}()).
+	 * </p>
+	 *
+	 * @return $this
+	 *
+	 * @throws Exception
+	 */
+	public function setPriority($value = self::DEF_PRIORITY)
+	{
+		$this->checkResource();
+		if (function_exists('event_priority_set')
+			&& !event_priority_set($this->resource, $value)
+		) {
+			throw new Exception(
+				"Can't set event priority to {$value} (event_priority_set)"
+			);
+		}
+		return $this;
+	}
+
 
 	/**
 	 * {@inheritdoc}

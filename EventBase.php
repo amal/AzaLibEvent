@@ -524,10 +524,17 @@ class EventBase
 	/**
 	 * Adds a new named timer to the base or customize existing
 	 *
-	 * @param string $name Timer name
+	 * @param string $name <p>
+	 * Timer name
+	 * </p>
 	 * @param int  $interval <p>
-	 * Interval. In seconds by default. See <b>$q</b>
-	 * argument for details.
+	 * Interval. In seconds by default (47 seconds max!). See <b>$q</b>
+	 * argument for details.</p>
+	 * <p>On Linux kernels at least up to 2.6.24.4, epoll can't handle timeout
+	 * values bigger than (LONG_MAX - 999ULL)/HZ. HZ in the wild can be
+	 * as big as 1000, and LONG_MAX can be as small as (1<<31)-1, so the
+	 * largest number of msec we can support here is 2147482. Let's
+	 * round that down by 47 seconds.
 	 * </p>
 	 * @param callback $callback <p>
 	 * Callback function to be called when the interval expires.<br/>
@@ -536,9 +543,15 @@ class EventBase
 	 * If callback will return TRUE timer will be started
 	 * again for next iteration.
 	 * </p>
-	 * @param mixed $arg   Additional timer argument
-	 * @param bool  $start Whether to start timer
-	 * @param int   $q     Interval multiply factor
+	 * @param mixed $arg <p>
+	 * Additional timer argument
+	 * </p>
+	 * @param bool $start <p>
+	 * Whether to start timer
+	 * </p>
+	 * @param int $q <p>
+	 * Interval multiply factor
+	 * </p>
 	 *
 	 * @throws Exception
 	 */
@@ -558,7 +571,8 @@ class EventBase
 		if ($notExists) {
 			$event = new Event();
 			$event->setTimer(array($this, '_onTimer'), $name)
-					->setBase($this);
+					->setBase($this)
+					->setPriority(self::MAX_PRIORITY);
 
 			$this->timers[$name] = array(
 				'name'     => $name,
@@ -596,10 +610,18 @@ class EventBase
 	 *
 	 * @see timerAdd
 	 *
-	 * @param string $name           Timer name
-	 * @param int    $interval       Interval
-	 * @param mixed  $arg            Additional timer argument
-	 * @param bool   $resetIteration Whether to reset iteration counter
+	 * @param string $name <p>
+	 * Timer name
+	 * </p>
+	 * @param int $interval [optional] <p>
+	 * Interval. In seconds by default
+	 * </p>
+	 * @param mixed $arg [optional] <p>
+	 * Additional timer argument
+	 * </p>
+	 * @param bool $resetIteration [optional] <p>
+	 * Whether to reset iteration counter
+	 * </p>
 	 *
 	 * @throws Exception
 	 */

@@ -92,13 +92,14 @@ $evS1->setSignal(SIGWINCH, 'signal')
 
 posix_kill(posix_getpid(), SIGWINCH);
 
-// Start event loop once
-$loop->loop(EVLOOP_NONBLOCK);
+// Start event loop once for 2 seconds
+$loop->loopExit(2)->loop();
 
 // Fork support test
 //if (!$pid = $loop->fork()) {
 //	exit; // exit in child
 //}
+//echo "fork" . PHP_EOL;
 //pcntl_waitpid($pid, $status, WUNTRACED);
 
 // Setup signal handler

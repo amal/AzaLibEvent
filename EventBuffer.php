@@ -78,6 +78,22 @@ class EventBuffer extends EventBasic
 	 */
 	const DEF_TIMEOUT_WRITE = 30;
 
+	/**
+	 * Default max single read size.
+	 * 64kb by default.
+	 *
+	 * @see setMaxSingleReadSize
+	 */
+	const DEF_READ_SIZE = 0x10000;
+
+	/**
+	 * Default max single write size
+	 * 64kb by default.
+	 *
+	 * @see setMaxSingleWriteSize
+	 */
+	const DEF_WRITE_SIZE = 0x10000;
+
 
 	/**
 	 * Last enabled events
@@ -644,5 +660,114 @@ class EventBuffer extends EventBasic
 		}
 		$this->priority = $value;
 		return $this;
+	}
+
+
+
+	/**
+	 * Replaces the current maximum single read size.
+	 *
+	 * By default, bufferevents won’t read or write the maximum
+	 * possible amount of bytes on each invocation of the event
+	 * loop; doing so can lead to weird unfair behaviorsand
+	 * resource starvation.
+	 * On the other hand, the defaults might not be reasonable
+	 * for all situations.
+	 *
+	 * @see event_buffer_max_single_read_set
+	 *
+	 * @param int $value <p>
+	 * Size value in bytes. If it's 0 or above PHP_INT_MAX,
+	 * the default libevent value will be used.
+	 * </p>
+	 *
+	 * @return $this
+	 *
+	 * @throws Exception
+	 */
+	public function setMaxSingleReadSize($value = self::DEF_READ_SIZE)
+	{
+		$this->checkResource();
+		if (function_exists('event_buffer_max_single_read_set')
+		    // Libevent >= 2.1.1-alpha
+		    && !event_buffer_max_single_read_set($this->resource, $value)
+		) {
+			throw new Exception(
+				"Can't set maximum single read size to {$value}"
+				. " (event_buffer_max_single_read_set)"
+			);
+		}
+		return $this;
+	}
+
+	/**
+	 * Replaces the current maximum single write size.
+	 *
+	 * By default, bufferevents won’t read or write the maximum
+	 * possible amount of bytes on each invocation of the event
+	 * loop; doing so can lead to weird unfair behaviorsand
+	 * resource starvation.
+	 * On the other hand, the defaults might not be reasonable
+	 * for all situations.
+	 *
+	 * @see event_buffer_max_single_write_set
+	 *
+	 * @param int $value <p>
+	 * Size value in bytes. If it's 0 or above PHP_INT_MAX,
+	 * the default libevent value will be used.
+	 * </p>
+	 *
+	 * @return $this
+	 *
+	 * @throws Exception
+	 */
+	public function setMaxSingleWriteSize($value = self::DEF_WRITE_SIZE)
+	{
+		$this->checkResource();
+		if (function_exists('event_buffer_max_single_write_set')
+		    // Libevent >= 2.1.1-alpha
+		    && !event_buffer_max_single_write_set($this->resource, $value)
+		) {
+			throw new Exception(
+				"Can't set maximum single write size to {$value}"
+				. " (event_buffer_max_single_write_set)"
+			);
+		}
+		return $this;
+	}
+
+
+	/**
+	 * Returns the current maximum single read size.
+	 *
+	 * @see event_buffer_max_single_read_get
+	 *
+	 * @return int
+	 */
+	public function getMaxSingleReadSize()
+	{
+		$this->checkResource();
+		if (function_exists('event_buffer_max_single_read_get')) {
+			// Libevent >= 2.1.1-alpha
+			return event_buffer_max_single_read_get($this->resource);
+		}
+		return null;
+	}
+
+	/**
+	 * Returns the current maximum single write size.
+	 *
+	 * @see event_buffer_max_single_write_get
+	 *
+	 * @return int
+	 */
+	public function getMaxSingleWriteSize()
+	{
+		$this->checkResource();
+		if (function_exists('event_buffer_max_single_write_get')) {
+			// Libevent >= 2.1.1-alpha
+			return event_buffer_max_single_write_get($this->resource);
+		}
+		return null;
 	}
 }
